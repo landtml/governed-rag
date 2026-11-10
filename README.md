@@ -26,8 +26,6 @@
 
 Governed RAG is a reference implementation of retrieval-augmented generation on PostgreSQL and pgvector. Documents sit in two tiers of authority: curated documents, which have an owner and a review date, rank above the archive. The implementation covers the whole path: ingest with a deletion guard, hybrid retrieval with access control in the query, reranking, generation that must quote its evidence, four verification gates, an HTTP service, and an evaluation kit that fails the build on a regression. It runs end to end on deterministic fakes, so the quickstart and the test suite need no model download and no API key.
 
-**Status.** Version 0.1.1, maintained by one author. The code is tested and the retrieval path is load-tested, but the quality figures come from a synthetic corpus. Treat it as a base to adapt and measure again on your own documents; [Known limits](#known-limits) lists what is unsolved.
-
 ## Why I built this
 
 I developed this to solve a problem I kept meeting in retrieval-augmented generation: the demo works, and the answers cannot be checked. The pipelines I reviewed treated a reviewed policy and a three-year-old support ticket as equally good evidence. They applied access rules after retrieval, or left them to the calling application. They returned fluent text with no way to check where a number came from, and they answered questions the documents did not cover.
