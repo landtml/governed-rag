@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.venv-gpu/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Generated benchmark corpus (bench/make_corpus.py recreates it) and embedding dumps
+bench/corpus/
+*.npy
+
+# Secrets and local configuration
+.env
+.env.*
+tokens.json
+*.pem
+*.key
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs and scratch output
+*.log
+tmp/

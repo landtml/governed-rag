@@ -1,0 +1,21 @@
+{
+  "tau": 0.010293529368937016,
+  "reranker": "BAAI/bge-reranker-v2-m3",
+  "golden_sha256": "7420a202718d819497a5ac1b744cee79d744e316f71e959848b3c14e12a13740",
+  "cases": 330,
+  "date": "2026-11-10",
+  "fit_cases": {
+    "answerable": 88,
+    "unanswerable": 63
+  },
+  "holdout": {
+    "answerable": 87,
+    "unanswerable": 62,
+    "kept": 0.9770114942528736,
+    "passed": 0.0
+  },
+  "near_miss_above_tau": {
+    "n": 30,
+    "share": 0.9666666666666667
+  }
+}

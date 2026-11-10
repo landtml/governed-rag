@@ -1,0 +1,44 @@
+{
+  "n": 11,
+  "hard": {
+    "forbidden_leaks": 0,
+    "exact_accuracy": 1.0
+  },
+  "soft": {
+    "recall_at_k": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 5
+    },
+    "curated_first": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 3
+    },
+    "abstain_recall": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 6
+    },
+    "abstain_precision": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 6
+    },
+    "gate_pass_rate": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 5
+    }
+  },
+  "latency_ms": {
+    "p50": 1.4979879997554235,
+    "p95": 4.3942189986410085
+  },
+  "suggested_tau": 0.5
+}

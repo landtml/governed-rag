@@ -1,0 +1,86 @@
+{
+  "chunks": 500000,
+  "fill": null,
+  "server": {
+    "version": "17.11 (Debian 17.11-1.pgdg12+2)",
+    "pgvector": "0.8.7",
+    "shared_buffers": "128MB",
+    "work_mem": "4MB",
+    "hnsw_ef_search": "40"
+  },
+  "lexical": {
+    "common_lexemes": 67,
+    "common_fraction": 0.05,
+    "common_floor": 1000
+  },
+  "settings": {
+    "candidates_per_leg": 50,
+    "rrf_k": 60,
+    "rerank_n": 40,
+    "hnsw_ef_search": 200
+  },
+  "recall": {
+    "plan_uses_hnsw": true,
+    "exact_plan_avoids_hnsw": true,
+    "public_archive": {
+      "recall_mean": 0.9166,
+      "recall_min": 0.0,
+      "recall_p05": 0.86,
+      "near_zero": 3,
+      "filled_fraction": 1.0,
+      "approx_ms_p50": 5.696,
+      "approx_ms_p95": 7.742,
+      "exact_ms_p50": 251.215,
+      "n": 100
+    },
+    "group_archive": {
+      "recall_mean": 0.9168,
+      "recall_min": 0.0,
+      "recall_p05": 0.88,
+      "near_zero": 3,
+      "filled_fraction": 1.0,
+      "approx_ms_p50": 5.636,
+      "approx_ms_p95": 6.826,
+      "exact_ms_p50": 261.24,
+      "n": 100
+    },
+    "public_curated": {
+      "recall_mean": 1.0,
+      "recall_min": 1.0,
+      "recall_p05": 1.0,
+      "near_zero": 0,
+      "filled_fraction": 1.0,
+      "approx_ms_p50": 19.525,
+      "approx_ms_p95": 20.261,
+      "exact_ms_p50": 34.747,
+      "n": 100
+    }
+  },
+  "latency": {
+    "target_qps": 50.0,
+    "achieved_qps": 49.99,
+    "completed": 3000,
+    "errors": 0,
+    "ms_p50": 35.339,
+    "ms_p95": 67.827,
+    "ms_p99": 84.975,
+    "ms_max": 104.699,
+    "by_scenario": {
+      "public_archive": {
+        "ms_p50": 34.172,
+        "ms_p95": 70.308,
+        "n": 1000
+      },
+      "group_archive": {
+        "ms_p50": 34.683,
+        "ms_p95": 72.438,
+        "n": 1000
+      },
+      "public_curated": {
+        "ms_p50": 35.462,
+        "ms_p95": 38.881,
+        "n": 1000
+      }
+    }
+  }
+}

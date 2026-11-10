@@ -1,0 +1,69 @@
+{
+  "n": 33,
+  "hard": {
+    "forbidden_leaks": 0,
+    "exact_accuracy": 1.0
+  },
+  "soft": {
+    "recall_at_k": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 18
+    },
+    "curated_first": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 9
+    },
+    "abstain_recall": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 15
+    },
+    "abstain_precision": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 15
+    },
+    "near_miss_abstain": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 3
+    },
+    "gate_pass_rate": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 18
+    }
+  },
+  "latency_ms": {
+    "p50": 3141.4250300003914,
+    "p95": 4589.859610000531
+  },
+  "suggested_tau": 0.006668181740678847,
+  "calibration": {
+    "tau": 0.006668181740678847,
+    "fit": {
+      "answerable": 14,
+      "unanswerable": 12,
+      "kept": 1.0,
+      "passed": 0.0
+    },
+    "holdout": null,
+    "near_miss_above_tau": {
+      "n": 3,
+      "share": 1.0
+    }
+  },
+  "abstain_reasons": {
+    "model_abstained": 3,
+    "no_evidence": 12
+  },
+  "workers": 1
+}

@@ -1,0 +1,95 @@
+{
+  "chunks": 100000,
+  "fill": {
+    "docs": 25000,
+    "chunks": 100000,
+    "clusters": null,
+    "fill_seconds": 9.964,
+    "index_seconds": 65.929,
+    "table_bytes": 1500086272,
+    "hnsw_bytes": 819208192
+  },
+  "server": {
+    "version": "17.11 (Debian 17.11-1.pgdg12+2)",
+    "pgvector": "0.8.7",
+    "shared_buffers": "128MB",
+    "work_mem": "4MB",
+    "hnsw_ef_search": "40",
+    "hnsw_index": "CREATE INDEX chunks_vec ON public.chunks USING hnsw (embedding vector_cosine_ops) WITH (m='32', ef_construction='200')"
+  },
+  "lexical": {
+    "common_lexemes": 185,
+    "common_fraction": 0.02,
+    "common_floor": 1000
+  },
+  "settings": {
+    "candidates_per_leg": 50,
+    "rrf_k": 60,
+    "rerank_n": 40,
+    "hnsw_ef_search": 200
+  },
+  "recall": {
+    "plan_uses_hnsw": true,
+    "exact_plan_avoids_hnsw": true,
+    "public_archive": {
+      "recall_mean": 0.9846,
+      "recall_min": 0.0,
+      "recall_p05": 1.0,
+      "near_zero": 3,
+      "filled_fraction": 1.0,
+      "approx_ms_p50": 4.126,
+      "approx_ms_p95": 4.732,
+      "exact_ms_p50": 62.886,
+      "n": 200
+    },
+    "group_archive": {
+      "recall_mean": 0.9846,
+      "recall_min": 0.0,
+      "recall_p05": 1.0,
+      "near_zero": 3,
+      "filled_fraction": 1.0,
+      "approx_ms_p50": 4.041,
+      "approx_ms_p95": 4.58,
+      "exact_ms_p50": 64.429,
+      "n": 200
+    },
+    "public_curated": {
+      "recall_mean": 1.0,
+      "recall_min": 1.0,
+      "recall_p05": 1.0,
+      "near_zero": 0,
+      "filled_fraction": 1.0,
+      "approx_ms_p50": 4.691,
+      "approx_ms_p95": 4.997,
+      "exact_ms_p50": 15.27,
+      "n": 200
+    }
+  },
+  "latency": {
+    "target_qps": 10.0,
+    "achieved_qps": 10.02,
+    "completed": 600,
+    "errors": 0,
+    "ms_p50": 8.006,
+    "ms_p95": 12.321,
+    "ms_p99": 15.141,
+    "ms_max": 16.634,
+    "by_scenario": {
+      "public_archive": {
+        "ms_p50": 7.957,
+        "ms_p95": 12.573,
+        "n": 200
+      },
+      "group_archive": {
+        "ms_p50": 7.986,
+        "ms_p95": 13.393,
+        "n": 200
+      },
+      "public_curated": {
+        "ms_p50": 8.013,
+        "ms_p95": 9.964,
+        "n": 200
+      }
+    }
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "what": "Dense recall (public reader, archive tier, 50 candidates, hnsw.ef_search 200) on 100,000 bge-m3 embeddings of synthetic tickets, one row per index build",
+  "rows": [
+    {
+      "index": "(m='16', ef_construction='64')",
+      "build": "serial, maintenance_work_mem 2GB",
+      "recall_mean": 0.922,
+      "recall_p05": 0.32,
+      "near_zero": 2,
+      "n": 200,
+      "approx_ms_p50": 3.443
+    },
+    {
+      "index": "(m='16', ef_construction='64')",
+      "build": "serial, maintenance_work_mem 2GB",
+      "recall_mean": 0.9644,
+      "recall_p05": 0.84,
+      "near_zero": 1,
+      "n": 200,
+      "approx_ms_p50": 3.546
+    },
+    {
+      "index": "(m='16', ef_construction='64')",
+      "build": "serial, maintenance_work_mem 2GB",
+      "recall_mean": 0.9514,
+      "recall_p05": 0.84,
+      "near_zero": 3,
+      "n": 200,
+      "approx_ms_p50": 3.441
+    },
+    {
+      "index": "(m='32', ef_construction='200')",
+      "build": "serial, maintenance_work_mem 2GB",
+      "recall_mean": 0.9995,
+      "recall_p05": 1.0,
+      "near_zero": 0,
+      "n": 200,
+      "approx_ms_p50": 4.172
+    },
+    {
+      "index": "(m='32', ef_construction='200')",
+      "build": "serial, maintenance_work_mem 2GB",
+      "recall_mean": 1.0,
+      "recall_p05": 1.0,
+      "near_zero": 0,
+      "n": 200,
+      "approx_ms_p50": 4.176
+    },
+    {
+      "index": "(m='32', ef_construction='200')",
+      "build": "serial, maintenance_work_mem 2GB",
+      "recall_mean": 1.0,
+      "recall_p05": 1.0,
+      "near_zero": 0,
+      "n": 200,
+      "approx_ms_p50": 4.255
+    },
+    {
+      "index": "(m='16', ef_construction='64')",
+      "build": "load-test fill, eval/loadtest-real-100000-m16.json",
+      "recall_mean": 0.921,
+      "recall_p05": 0.16,
+      "near_zero": 7,
+      "n": 200,
+      "approx_ms_p50": 3.478
+    },
+    {
+      "index": "(m='32', ef_construction='200')",
+      "build": "load-test fill, eval/loadtest-real-100000.json",
+      "recall_mean": 0.9846,
+      "recall_p05": 1.0,
+      "near_zero": 3,
+      "n": 200,
+      "approx_ms_p50": 4.126
+    }
+  ]
+}

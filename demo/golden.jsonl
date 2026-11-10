@@ -1,0 +1,11 @@
+{"id": "refund-window", "question": "What is our refund window?", "answerable": true, "tags": ["exact", "curated", "superseded"], "gold_docs": ["kb/policy/refunds"], "must_contain": ["14"], "forbidden_docs": ["archive/policies/refund-policy-2023"]}
+{"id": "first-response", "question": "How fast is the first support response?", "answerable": true, "tags": ["exact", "curated"], "gold_docs": ["kb/policy/sla"], "must_contain": ["4"]}
+{"id": "sev1-paging", "question": "When must a sev1 incident be paged?", "groups": ["support"], "answerable": true, "tags": ["exact", "curated"], "gold_docs": ["kb/internal/escalation"], "must_contain": ["15"]}
+{"id": "sev1-paging-denied", "question": "When must a sev1 incident be paged?", "answerable": false, "tags": ["acl_denied"], "forbidden_docs": ["kb/internal/escalation"]}
+{"id": "duplicate-charge", "question": "Has anyone seen a duplicate charge after switching plans?", "groups": ["support"], "answerable": true, "tags": ["archive"], "gold_docs": ["archive/tickets/T-1041"]}
+{"id": "duplicate-charge-denied", "question": "Has anyone seen a duplicate charge after switching plans?", "answerable": false, "tags": ["acl_denied"], "forbidden_docs": ["archive/tickets/T-1041"]}
+{"id": "duplicate-charge-strict", "question": "Has anyone seen a duplicate charge after switching plans?", "groups": ["support"], "min_authority": "curated", "answerable": false, "tags": ["min_authority"], "forbidden_docs": ["archive/tickets/T-1041"]}
+{"id": "salary-bands", "question": "What are the salary bands for engineers?", "groups": ["support"], "answerable": false, "tags": ["acl_denied"], "forbidden_docs": ["archive/finance/salary-bands"]}
+{"id": "laptop-access", "question": "How do new hires get laptop access?", "answerable": true, "tags": ["archive"], "gold_docs": ["archive/handbook/onboarding"]}
+{"id": "espresso", "question": "Which espresso machine does the office use?", "answerable": false, "tags": ["unanswerable"]}
+{"id": "chess", "question": "Who won the 1998 chess olympiad?", "answerable": false, "tags": ["unanswerable"]}

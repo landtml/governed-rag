@@ -1,0 +1,110 @@
+{
+  "n": 330,
+  "hard": {
+    "forbidden_leaks": 0,
+    "exact_accuracy": 1.0
+  },
+  "soft": {
+    "recall_at_k": {
+      "mean": 0.9885714285714285,
+      "lo": 0.9714285714285714,
+      "hi": 1.0,
+      "n": 175
+    },
+    "curated_first": {
+      "mean": 0.9882352941176471,
+      "lo": 0.9647058823529412,
+      "hi": 1.0,
+      "n": 85
+    },
+    "abstain_recall": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 155
+    },
+    "abstain_precision": {
+      "mean": 0.9872611464968153,
+      "lo": 0.9681528662420382,
+      "hi": 1.0,
+      "n": 157
+    },
+    "near_miss_abstain": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 30
+    },
+    "gate_pass_rate": {
+      "mean": 0.953757225433526,
+      "lo": 0.9190751445086706,
+      "hi": 0.9826589595375722,
+      "n": 173
+    }
+  },
+  "latency_ms": {
+    "p50": 3157.0105450000483,
+    "p95": 5143.044510999971
+  },
+  "suggested_tau": 0.010293529368937016,
+  "calibration": {
+    "tau": 0.010293529368937016,
+    "fit": {
+      "answerable": 88,
+      "unanswerable": 63,
+      "kept": 1.0,
+      "passed": 0.0
+    },
+    "holdout": {
+      "answerable": 87,
+      "unanswerable": 62,
+      "kept": 0.9770114942528736,
+      "passed": 0.0
+    },
+    "near_miss_above_tau": {
+      "n": 30,
+      "share": 0.9666666666666667
+    }
+  },
+  "abstain_reasons": {
+    "model_abstained": 29,
+    "no_evidence": 128
+  },
+  "workers": 6,
+  "judge": {
+    "model": "claude-sonnet-5-5@claude-cli-medium",
+    "faithfulness": {
+      "mean": 0.9826589595375722,
+      "lo": 0.9595375722543352,
+      "hi": 1.0,
+      "n": 173
+    },
+    "control_rejection": {
+      "mean": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 173
+    },
+    "errors": 0,
+    "unsupported": [
+      {
+        "id": "ticket-pulse-weekend-anomalies",
+        "claims": [
+          "All of these sources are archive tickets, and they describe the same cause and fix across many customers [E5]."
+        ]
+      },
+      {
+        "id": "ticket-compass-silent-notifications",
+        "claims": [
+          "The same fix was recorded across many tickets"
+        ]
+      },
+      {
+        "id": "ticket-forge-checks-silent",
+        "claims": [
+          "Customers confirmed the problem stopped after the webhook was re-enabled [E1]."
+        ]
+      }
+    ]
+  }
+}
