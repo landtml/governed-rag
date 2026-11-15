@@ -50,11 +50,11 @@ resource pg 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = if (deployP
   name: 'pg-governed-rag-${uniqueString(resourceGroup().id, pgLocation)}'
   location: pgLocation
   tags: tags
-  sku: { name: 'Standard_B1ms', tier: 'Burstable' }  // the free-account SKU
+  sku: { name: 'Standard_B1ms', tier: 'Burstable' }  // the smallest tier that runs the benchmark
   properties: {
     version: '17'
     availabilityZone: empty(pgZone) ? null : pgZone
-    storage: { storageSizeGB: 32, autoGrow: 'Disabled' }  // 32 GB is the free-account storage
+    storage: { storageSizeGB: 32, autoGrow: 'Disabled' }  // the smallest storage size
     backup: { backupRetentionDays: 7, geoRedundantBackup: 'Disabled' }
     highAvailability: { mode: 'Disabled' }
     network: { publicNetworkAccess: 'Enabled' }
@@ -113,7 +113,6 @@ resource ai 'Microsoft.CognitiveServices/accounts@2025-06-01' = if (deployAi) {
     publicNetworkAccess: 'Enabled'
     networkAcls: { defaultAction: 'Allow' }
     allowProjectManagement: true                      // Foundry project management
-    defaultProject: 'rg-governed-rag-proj'
   }
 }
 

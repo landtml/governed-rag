@@ -155,7 +155,7 @@ Everything is Bicep under [`infra/`](infra/), deployed with the Azure CLI. Ident
 
 | Step | Command | Creates |
 |---|---|---|
-| 1. Budget | `az deployment sub create -l swedencentral -f infra/bootstrap.bicep -p budgetAmount=50 contactEmail=<address>` | The resource group and a monthly budget with alerts |
+| 1. Budget | `az deployment sub create -l <region> -f infra/bootstrap.bicep -p budgetAmount=50 contactEmail=<address>` | The resource group and a monthly budget with alerts |
 | 2. Data and models | `infra/deploy.sh` | Azure Database for PostgreSQL 17 (Entra ID only, `vector` allowlisted) and an Azure AI Foundry resource with key auth disabled and pinned generator, judge and embedder deployments |
 | 3. Service | `infra/deploy-app.sh` | Container Registry, Log Analytics, a Container Apps environment, a user-assigned managed identity and the container app |
 | Tear down | `infra/teardown.sh` | Deletes the resource group |

@@ -15,7 +15,7 @@ client_ip=$(curl -fsS https://api.ipify.org)
 
 echo "Deploying to $RG for $upn from $client_ip"
 outputs=$(az deployment group create -g "$RG" -n governed-rag -f infra/main.bicep \
-  -p adminObjectId="$object_id" adminPrincipalName="$upn" clientIp="$client_ip" deployAi="${DEPLOY_AI:-true}" deployPg="${DEPLOY_PG:-true}" pgZone="${PG_ZONE:-}" pgLocation="${PG_LOCATION:-swedencentral}" \
+  -p adminObjectId="$object_id" adminPrincipalName="$upn" clientIp="$client_ip" deployAi="${DEPLOY_AI:-true}" deployPg="${DEPLOY_PG:-true}" pgZone="${PG_ZONE:-}" ${PG_LOCATION:+pgLocation="$PG_LOCATION"} \
   --query properties.outputs -o json)
 
 pg_host=$(jq -r .postgresHost.value <<<"$outputs")

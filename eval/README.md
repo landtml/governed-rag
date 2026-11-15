@@ -1,6 +1,6 @@
 # Measurement reports
 
-Every file here is the unedited output of a run on 2026-11-10 or later. The main README gives the setup and the summary; this page indexes the files and holds the detailed tables. The reports were measured with the local embedder and reranker and the backends named in each row; the commands below pass those backends explicitly, since the CLI now defaults to Azure OpenAI.
+Every file here is the unedited output of a run on 2026-11-10 or later. The main README gives the setup and the summary; this page indexes the files and holds the detailed tables. The reports were measured with the local embedder and reranker and the backends named in each row; the commands below pass those backends explicitly, since the CLI defaults to Azure OpenAI.
 
 | File | Produced by | Content |
 |---|---|---|

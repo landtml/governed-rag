@@ -10,12 +10,15 @@ vector and lexical legs, `src/governed_rag/schema.sql`). Moving to AI Search
 would re-implement that filter in another engine and throw away the measured
 results, so the same Postgres schema runs on Azure Database for PostgreSQL.
 
-## D2. Region: Sweden Central
+## D2. The region is a parameter
 
-It offers every model the deployment needs, including `text-embedding-3-large`
-as a regional Standard deployment (Learn: "Region availability for Foundry
-Models sold by Azure"). The Postgres region is a separate parameter
-(`pgLocation`), so the database can sit in another region if needed.
+Every resource takes its region from the resource group, which is set once
+with `-l <region>` when `infra/bootstrap.bicep` is deployed. Pick a region
+that offers every model in `infra/main.bicep`, including
+`text-embedding-3-large` as a regional Standard deployment (Learn: "Region
+availability for Foundry Models sold by Azure"). The Postgres region is a
+separate parameter (`pgLocation`, or `PG_LOCATION` for `infra/deploy.sh`), so
+the database can sit in another region if needed.
 
 ## D3. Read the quota from the subscription, not from a table
 
@@ -23,7 +26,7 @@ Azure OpenAI quota is set per subscription, region, model and deployment
 type. The reliable source is the usage API for the subscription in question:
 
 ```
-az cognitiveservices usage list -l swedencentral
+az cognitiveservices usage list -l <region>
 ```
 
 The deployment capacities in `infra/main.bicep` are parameters, so they can
@@ -58,8 +61,8 @@ on the resource: call models, not change them.
 ## D7. Embedder in-region
 
 The embedder (`text-embedding-3-large` at 1,024 dimensions, which fits
-`vector(1024)` without a migration) is a regional Standard deployment in
-Sweden Central, so document text is embedded in-region. The deployment type
+`vector(1024)` without a migration) is a regional Standard deployment, so
+document text is embedded in the deployment's own region. The deployment type
 of the chat models is covered in D11.
 
 ## D8. Pin model versions
@@ -87,8 +90,8 @@ and refuses a file fitted to another one.
 gpt-5-mini is a current reasoning model with structured-output support. It
 runs as a Global Standard deployment, which has the most capacity; the
 trade-off is that Microsoft may process those prompts in any region. A
-deployment that must keep inference in the EU uses a Data Zone or regional
-deployment instead, which is a change to the `sku` in `infra/main.bicep`.
+deployment that must keep inference within one geography uses a Data Zone or
+regional deployment instead, which is a change to the `sku` in `infra/main.bicep`.
 
 Reasoning models take `max_completion_tokens` (which also counts hidden
 reasoning tokens) and reject `temperature`, so the backends send no

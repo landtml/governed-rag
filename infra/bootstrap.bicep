@@ -3,12 +3,12 @@
 // that emails when actual spend crosses 50%, 80% and 100%, or when the
 // forecast crosses 100%.
 //
-//   az deployment sub create -l swedencentral -f infra/bootstrap.bicep \
+//   az deployment sub create -l <region> -f infra/bootstrap.bicep \
 //     -p budgetAmount=50 contactEmail=<you@example.com>
 targetScope = 'subscription'
 
-@description('Region for the resource group; every resource in it defaults to the same region.')
-param location string = 'swedencentral'
+@description('Region for the resource group; every resource in it defaults to the same region. Defaults to the region given with -l.')
+param location string = deployment().location
 
 @description('Name of the single resource group that holds the whole deployment.')
 param resourceGroupName string = 'rg-governed-rag'
@@ -28,7 +28,7 @@ resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   tags: { project: 'governed-rag' }
 }
 
-@description('False skips the budget, for offers where Cost Management is not yet available.')
+@description('False skips the budget, for subscription offers that do not support Cost Management budgets.')
 param deployBudget bool = true
 
 resource budget 'Microsoft.Consumption/budgets@2024-08-01' = if (deployBudget) {
