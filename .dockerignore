@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+.venv-gpu
+.pytest_cache
+**/__pycache__
+.env
+.env.*
+tokens.json
+*.pem
+*.key
+bench/corpus
+*.npy
+assets
+docs
+tests
+tmp
