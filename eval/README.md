@@ -1,13 +1,14 @@
 # Measurement reports
 
-Every file here is the unedited output of a run on 2026-11-10. The main README gives the setup and the summary; this page indexes the files and holds the detailed tables.
+Every file here is the unedited output of a run on 2026-11-10 or later. The main README gives the setup and the summary; this page indexes the files and holds the detailed tables. The reports were measured with the local embedder and reranker and the backends named in each row; the commands below pass those backends explicitly, since the CLI defaults to Azure OpenAI.
 
 | File | Produced by | Content |
 |---|---|---|
-| `baseline.json` | `rag eval --write-baseline`, real models, with `--judge claude-cli` | The 330-case benchmark: hard gates, soft metrics with intervals, calibration statistics, judge result |
-| `calibration.json` | `rag eval --write-calibration`, `--generator extractive` | The fitted threshold, the reranker it belongs to, hold-out and near-miss statistics |
+| `baseline.json` | `rag --embedder bge-m3 --generator claude-cli eval --write-baseline --judge claude-cli` | The 330-case benchmark: hard gates, soft metrics with intervals, calibration statistics, judge result |
+| `calibration.json` | `rag --embedder bge-m3 --generator extractive eval --write-calibration` | The fitted threshold, the reranker it belongs to, hold-out and near-miss statistics |
 | `baseline-fake.json` | `rag --fake eval` on `demo/golden.jsonl` | The baseline the CI gate compares against |
-| `latency-workers1.json` | `rag eval --workers 1` on every tenth case | End-to-end latency with one worker |
+| `openrouter-gpt-6-luna.json` | `rag --embedder bge-m3 --generator openrouter eval --judge claude-cli`, 2026-11-15 | The 330-case benchmark with `gpt-6-luna` as generator through OpenRouter; everything else as in `baseline.json` |
+| `latency-workers1.json` | `rag --embedder bge-m3 --generator claude-cli eval --workers 1` on every tenth case | End-to-end latency with one worker |
 | `loadtest-500000.json`, `loadtest-500000-qps10.json` | `bench/loadtest.py`, 500,000 synthetic chunks | Dense recall against exact search, hybrid retrieval latency at 50 and 10 queries/s |
 | `loadtest-real-100000.json`, `loadtest-real-100000-m16.json` | `bench/loadtest.py --vectors`, 100,000 real embeddings | The same measurements with the current index settings and with pgvector's default graph |
 | `hnsw-builds-real-100000.json` | Repeated index builds on the same data | Recall per build for both graph settings |
@@ -56,3 +57,25 @@ The load test's vocabulary is synthetic, so these runs measure cost only. The de
 | `m` 32, `ef_construction` 200 | rebuild 3 | 1.000 | 1.00 | 0 | 4.3 ms |
 
 For the queries with recall below 0.05, the index returned 50 chunks at cosine distance 0.26 to 0.36 while the true neighbours lay within 0.07. The misses are whole neighbourhoods the search never reached, and ties between near-duplicate vectors do not explain them. In both settings the build made during the load-test fill was the worst of its group; the cause is not known.
+
+## Generator swap: gpt-6-luna
+
+Same corpus, golden set, embedder, reranker, τ and judge (`claude-sonnet-5-5` at medium effort) as `baseline.json`;
+only the generator changed, to `openai/gpt-6-luna` through OpenRouter, which routed every request to OpenAI.
+Six workers, `--today 2026-11-10`. OpenRouter cost of the run: about $0.05.
+
+| Metric | Baseline (Sonnet 5.5) | gpt-6-luna |
+|---|---|---|
+| Forbidden leaks | 0 | 0 |
+| Exact accuracy | 1.000 | 1.000 |
+| Recall@k | 0.989 | 0.989 |
+| Abstain precision | 0.987 | 0.987 |
+| First-draft gate pass rate | 0.954 (0.919–0.983) | 0.994 (0.983–1.000) |
+| Faithfulness (judge) | 0.983 (0.960–1.000) | 1.000 (1.000–1.000) |
+| Latency p50 / p95 | 3.16 s / 5.14 s | 2.60 s / 4.76 s |
+
+The retrieval and abstention rows are identical because nothing before the generator changed, and the 29
+model abstentions fell on the same count. The gate pass rate interval touches the baseline's only at its
+edge. The faithfulness difference is inside the baseline's interval, so this sample does not show it is
+real. In the baseline the judge graded answers from its own model family; here it grades another vendor's
+model. Latency comes from a six-worker run and is indicative only.

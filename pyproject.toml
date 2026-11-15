@@ -19,6 +19,7 @@ dependencies = ["psycopg[binary]>=3.2", "pgvector>=0.3", "pyyaml>=6"]
 
 [project.optional-dependencies]
 real = ["sentence-transformers>=3", "anthropic"]
+azure = ["openai>=1.40", "azure-identity>=1.17"]
 
 [project.urls]
 Repository = "https://github.com/landtml/governed-rag"

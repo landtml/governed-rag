@@ -16,6 +16,7 @@ from governed_rag.evalkit import gate, judge_answers, load_golden, run, score
 from governed_rag.evidence import search
 from governed_rag.fakes import FAKE_TAU, ExtractiveGenerator, FakeEmbedder, FakeReranker
 from governed_rag.ingest import DeleteGuard, SyncAborted, sync
+from governed_rag.models import DEFAULT_EMBEDDER, DEFAULT_GENERATOR, DEFAULT_JUDGE, EMBEDDERS, GENERATORS, JUDGES
 from governed_rag.retrieve import get_fact
 from governed_rag.types import Authority, Evidence, Principal
 
@@ -32,13 +33,13 @@ def resolve_settings(database_url: str | None, fake: bool, calibration: Path, re
     return calibrated(settings, calibration, reranker_id)
 
 
-# Each builder imports its real class only when it is needed, so --fake runs and
+# Each backend loads its SDK or model only when it is built, so --fake runs and
 # commands that use fewer models never load the heavy dependencies.
-def _embedder(fake: bool):
+def _embedder(fake: bool, kind: str = DEFAULT_EMBEDDER):
     if fake:
         return FakeEmbedder()
-    from governed_rag.models import STEmbedder
-    return STEmbedder()
+    from governed_rag.models import make_embedder
+    return make_embedder(kind)
 
 
 def _reranker(fake: bool):
@@ -81,7 +82,7 @@ def _lint(conn, args) -> int:
 
 
 def _ingest(conn, args) -> int:
-    embedder = _embedder(args.fake)
+    embedder = _embedder(args.fake, args.embedder)
     settings = Settings(database_url=args.database_url)
     try:
         report = sync(conn, args.knowledge, args.archive, embedder, settings, args.today, force=args.force)
@@ -97,7 +98,7 @@ def _ingest(conn, args) -> int:
 
 
 def _search(conn, args) -> int:
-    embedder = _embedder(args.fake)
+    embedder = _embedder(args.fake, args.embedder)
     reranker = _reranker(args.fake)
     settings = resolve_settings(args.database_url, args.fake, args.calibration, reranker.model_id)
     result = search(conn, args.question, _principal(args.groups), embedder=embedder, reranker=reranker,
@@ -108,7 +109,7 @@ def _search(conn, args) -> int:
 
 
 def _ask(conn, args) -> int:
-    embedder = _embedder(args.fake)
+    embedder = _embedder(args.fake, args.embedder)
     reranker = _reranker(args.fake)
     generator = _generator(args.fake, args.generator)
     settings = resolve_settings(args.database_url, args.fake, args.calibration, reranker.model_id)
@@ -134,14 +135,15 @@ def _fact(conn, args) -> int:
 
 def _eval(conn, args) -> int:
     cases = load_golden(args.golden)
-    embedder = _embedder(args.fake)
+    embedder = _embedder(args.fake, args.embedder)
     reranker = _reranker(args.fake)
     generator = _generator(args.fake, args.generator)
     settings = resolve_settings(args.database_url, args.fake, args.calibration, reranker.model_id)
     results = run(conn, cases, embedder=embedder, reranker=reranker, generator=generator,
                   settings=settings, today=args.today, workers=args.workers,
                   connect=lambda: connect(args.database_url))
-    report = {**score(results), "workers": args.workers}
+    # The generator id is read after the run: gateway backends learn the served model from replies.
+    report = {**score(results), "workers": args.workers, "generator": generator.model_id}
     if args.judge != "none":
         report["judge"] = judge_answers(results, _judge(args.judge), workers=args.workers)
     baseline = json.loads(args.baseline.read_text()) if args.baseline else None
@@ -226,7 +228,7 @@ def _serve(conn, args) -> int:
     except (OSError, ValueError) as e:
         print(f"error: cannot use token file {args.tokens}: {e}", file=sys.stderr)
         return 2
-    embedder = _embedder(args.fake)
+    embedder = _embedder(args.fake, args.embedder)
     reranker = _reranker(args.fake)
     generator = _generator(args.fake, args.generator)
     settings = resolve_settings(args.database_url, args.fake, args.calibration, reranker.model_id)
@@ -259,8 +261,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--database-url", default=None, help="default: DATABASE_URL or the local dev database")
     parser.add_argument("--today", type=date.fromisoformat, default=None, help="YYYY-MM-DD (default: today)")
     parser.add_argument("--calibration", type=Path, default=Path("eval/calibration.json"))
-    parser.add_argument("--generator", choices=("anthropic", "claude-cli", "extractive"), default="anthropic",
-                        help="generation backend for ask and eval; ignored with --fake")
+    parser.add_argument("--generator", choices=GENERATORS, default=DEFAULT_GENERATOR,
+                        help="generation backend for ask, eval and serve (default: %(default)s); ignored with --fake")
+    parser.add_argument("--embedder", choices=EMBEDDERS, default=DEFAULT_EMBEDDER,
+                        help="embedding backend (default: %(default)s); ignored with --fake. "
+                             "Switching re-embeds the corpus on ingest")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("lint", help="check curated documents")
@@ -294,8 +299,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true")
     p.add_argument("--workers", type=int, default=1,
                    help="cases answered at once; above 1, latency includes waiting for a local model")
-    p.add_argument("--judge", choices=("none", "claude-cli", "fake"), default="none",
-                   help="report entailment of answers by evidence; reported, never gated")
+    p.add_argument("--judge", choices=("none", *JUDGES), nargs="?", const=DEFAULT_JUDGE, default="none",
+                   help="report entailment of answers by evidence; reported, never gated. "
+                        f"--judge alone uses {DEFAULT_JUDGE}")
     p.set_defaults(run=_eval)
 
     p = sub.add_parser("serve", help="serve search, answer and fact over HTTP")

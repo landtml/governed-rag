@@ -14,8 +14,9 @@ class _MustNotBuild:
 
 def test_real_mode_ingest_and_fact_build_no_reranker_or_generator(db, monkeypatch):
     import governed_rag.models as models
-    monkeypatch.setattr(models, "STEmbedder", FakeEmbedder)
+    monkeypatch.setattr(models, "AzureOpenAIEmbedder", FakeEmbedder)  # the default embedder
     monkeypatch.setattr(models, "STReranker", _MustNotBuild)
+    monkeypatch.setattr(models, "AzureOpenAIGenerator", _MustNotBuild)
     monkeypatch.setattr(models, "AnthropicGenerator", _MustNotBuild)
     monkeypatch.setattr(models, "ClaudeCliGenerator", _MustNotBuild)
     base = ["--database-url", URL, "--today", "2026-11-10"]

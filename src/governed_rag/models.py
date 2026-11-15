@@ -191,7 +191,180 @@ def _claude_json(executable: str, model: str, effort: str, system: str, user: st
     return obj["structured_output"]
 
 
-def make_generator(kind: str) -> Generator:
+# Data-plane API version that has structured outputs (json_schema, strict) and
+# the reasoning-model parameters (max_completion_tokens, reasoning_effort).
+AZURE_OPENAI_API_VERSION = "2025-04-01-preview"
+
+
+def _azure_client():
+    """An Azure OpenAI client that authenticates with Microsoft Entra ID, never an API key.
+
+    DefaultAzureCredential uses the Azure CLI login on a developer machine and the
+    managed identity inside Azure. The Foundry resource has key auth disabled.
+    """
+    from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    from openai import AzureOpenAI
+    token = get_bearer_token_provider(DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default")
+    # The SDK retries 429s with backoff and honours Retry-After; regional quota is small.
+    return AzureOpenAI(azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"], azure_ad_token_provider=token,
+                       api_version=AZURE_OPENAI_API_VERSION, max_retries=10)
+
+
+def _azure_json(client, deployment: str, system: str, user: str, name: str, schema: dict,
+                max_tokens: int, reasoning_effort: str | None,
+                extra_body: dict | None = None) -> tuple[dict, str, str | None]:
+    """One structured-output chat call. Returns the parsed object and the model the service ran.
+
+    Written for reasoning models (the GPT-5 family and later): they take
+    max_completion_tokens, which also counts the hidden reasoning tokens, and
+    reject temperature, so sampling stays at the service default.
+    """
+    extra = {"reasoning_effort": reasoning_effort} if reasoning_effort else {}
+    if extra_body:
+        extra["extra_body"] = extra_body
+    response = client.chat.completions.create(
+        model=deployment,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        response_format={"type": "json_schema", "json_schema": {"name": name, "schema": schema, "strict": True}},
+        max_completion_tokens=max_tokens,
+        **extra,
+    )
+    choice = response.choices[0]
+    if choice.message.refusal:
+        raise RuntimeError(f"model refused: {choice.message.refusal[:200]}")
+    if choice.finish_reason != "stop":
+        raise RuntimeError(f"generation stopped: {choice.finish_reason}")
+    # OpenRouter adds the upstream provider to the response; Azure does not.
+    return json.loads(choice.message.content), response.model, getattr(response, "provider", None)
+
+
+def _served_id(backend, model: str, provider: str | None) -> str:
+    """model@label, plus every upstream provider seen so far when the gateway reports one."""
+    if provider:
+        backend.providers = sorted(set(getattr(backend, "providers", [])) | {provider})
+        return f"{model}@{backend._label}[{','.join(backend.providers)}]"
+    return f"{model}@{backend._label}"
+
+
+class AzureOpenAIGenerator:
+    _label = "azure-openai"
+    _extra_body: dict | None = None
+
+    def __init__(self, deployment: str | None = None, client=None, max_tokens: int = 16000,
+                 reasoning_effort: str | None = None):
+        self.deployment = deployment or os.environ.get("AZURE_OPENAI_GENERATOR_DEPLOYMENT", "generator")
+        self._client = client if client is not None else _azure_client()
+        self._max_tokens = max_tokens
+        self._effort = reasoning_effort or os.environ.get("AZURE_OPENAI_REASONING_EFFORT")
+        # Replaced by the model version the service reports on the first call.
+        self.model_id = f"{self.deployment}@{self._label}"
+
+    def generate(self, question: str, evidence: Sequence[Evidence],
+                 feedback: str | None = None) -> Draft:
+        system, user = render_prompt(question, evidence, feedback)
+        obj, model, provider = _azure_json(self._client, self.deployment, system, user, "draft", DRAFT_SCHEMA,
+                                           self._max_tokens, self._effort, self._extra_body)
+        self.model_id = _served_id(self, model, provider)
+        return parse_draft(obj)
+
+
+class AzureOpenAIJudge:
+    _label = "azure-openai"
+    _extra_body: dict | None = None
+
+    def __init__(self, deployment: str | None = None, client=None, max_tokens: int = 16000,
+                 reasoning_effort: str | None = None):
+        self.deployment = deployment or os.environ.get("AZURE_OPENAI_JUDGE_DEPLOYMENT", "judge")
+        self._client = client if client is not None else _azure_client()
+        self._max_tokens = max_tokens
+        self._effort = reasoning_effort or os.environ.get("AZURE_OPENAI_REASONING_EFFORT")
+        self.model_id = f"{self.deployment}@{self._label}"
+
+    def judge(self, question: str, answer: str, evidence: Sequence[Evidence]) -> Verdict:
+        system, user = render_judge_prompt(question, answer, evidence)
+        obj, model, provider = _azure_json(self._client, self.deployment, system, user, "verdict", VERDICT_SCHEMA,
+                                           self._max_tokens, self._effort, self._extra_body)
+        self.model_id = _served_id(self, model, provider)
+        return parse_verdict(obj)
+
+
+class AzureOpenAIEmbedder:
+    """text-embedding-3-large shortened to 1,024 dimensions, the width of the chunks table."""
+
+    dim = 1024
+
+    def __init__(self, deployment: str | None = None, client=None,
+                 model: str = "text-embedding-3-large", batch_size: int = 64):
+        self.deployment = deployment or os.environ.get("AZURE_OPENAI_EMBEDDER_DEPLOYMENT", "embedder")
+        self._client = client if client is not None else _azure_client()
+        self._batch_size = batch_size
+        # Part of every chunk's content hash, so switching embedders re-embeds the corpus.
+        self.model_id = f"{model}-{self.dim}@azure-openai"
+
+    def embed(self, texts: Sequence[str]) -> list[list[float]]:
+        texts = list(texts)
+        vectors: list[list[float]] = []
+        for start in range(0, len(texts), self._batch_size):
+            batch = texts[start:start + self._batch_size]
+            response = self._client.embeddings.create(model=self.deployment, input=batch, dimensions=self.dim)
+            vectors += [d.embedding for d in sorted(response.data, key=lambda d: d.index)]
+        return vectors
+
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+# Route only to upstream providers that honour every parameter sent (strict json_schema above all).
+OPENROUTER_ROUTING = {"provider": {"require_parameters": True}}
+
+
+def _openrouter_client():
+    from openai import OpenAI
+    return OpenAI(base_url=OPENROUTER_BASE_URL, api_key=os.environ["OPENROUTER_API_KEY"], max_retries=10)
+
+
+class OpenRouterGenerator(AzureOpenAIGenerator):
+    """Secondary backend: the Azure structured-output generator pointed at OpenRouter, an
+    OpenAI-compatible gateway. Useful for trying a model before deploying it on Azure."""
+
+    _label = "openrouter"
+    _extra_body = OPENROUTER_ROUTING
+
+    def __init__(self, model: str | None = None, client=None, **kwargs):
+        model = model or os.environ.get("OPENROUTER_GENERATOR_MODEL", "openai/gpt-6-luna")
+        super().__init__(deployment=model, client=client if client is not None else _openrouter_client(), **kwargs)
+
+
+class OpenRouterJudge(AzureOpenAIJudge):
+    """Secondary backend: the Azure structured-output judge pointed at OpenRouter."""
+
+    _label = "openrouter"
+    _extra_body = OPENROUTER_ROUTING
+
+    def __init__(self, model: str | None = None, client=None, **kwargs):
+        model = model or os.environ.get("OPENROUTER_JUDGE_MODEL", "openai/gpt-6-luna")
+        super().__init__(deployment=model, client=client if client is not None else _openrouter_client(), **kwargs)
+
+
+# Backend names, Azure OpenAI first: it is the default for every model seam.
+# OpenRouter is the secondary, OpenAI-compatible route; the rest run locally or on other APIs.
+EMBEDDERS = ("azure-openai", "bge-m3")
+GENERATORS = ("azure-openai", "openrouter", "anthropic", "claude-cli", "extractive")
+JUDGES = ("azure-openai", "openrouter", "claude-cli", "fake")
+DEFAULT_EMBEDDER = DEFAULT_GENERATOR = DEFAULT_JUDGE = "azure-openai"
+
+
+def make_embedder(kind: str = DEFAULT_EMBEDDER) -> Embedder:
+    if kind == "azure-openai":
+        return AzureOpenAIEmbedder()
+    if kind == "bge-m3":
+        return STEmbedder()
+    raise ValueError(f"unknown embedder {kind!r}")
+
+
+def make_generator(kind: str = DEFAULT_GENERATOR) -> Generator:
+    if kind == "azure-openai":
+        return AzureOpenAIGenerator()
+    if kind == "openrouter":
+        return OpenRouterGenerator()
     if kind == "anthropic":
         return AnthropicGenerator()
     if kind == "claude-cli":
@@ -201,7 +374,11 @@ def make_generator(kind: str) -> Generator:
     raise ValueError(f"unknown generator {kind!r}")
 
 
-def make_judge(kind: str) -> Judge:
+def make_judge(kind: str = DEFAULT_JUDGE) -> Judge:
+    if kind == "azure-openai":
+        return AzureOpenAIJudge()
+    if kind == "openrouter":
+        return OpenRouterJudge()
     if kind == "claude-cli":
         return ClaudeCliJudge()
     if kind == "fake":
@@ -210,4 +387,5 @@ def make_judge(kind: str) -> Judge:
 
 
 def load_real() -> tuple[Embedder, Reranker, Generator]:
-    return STEmbedder(), STReranker(), AnthropicGenerator()
+    """The default real stack: Azure OpenAI embedder and generator, local cross-encoder reranker."""
+    return make_embedder(), STReranker(), make_generator()
