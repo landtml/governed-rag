@@ -13,18 +13,20 @@
   <img src="https://img.shields.io/badge/license-MIT-2B2927" alt="MIT license">
   <img src="https://img.shields.io/badge/python-3.12-2B2927" alt="Python 3.12">
   <img src="https://img.shields.io/badge/PostgreSQL%2017-pgvector%200.8-2B2927" alt="PostgreSQL 17 with pgvector 0.8">
+  <img src="https://img.shields.io/badge/Azure-OpenAI%20%C2%B7%20PostgreSQL%20%C2%B7%20Container%20Apps-2B2927" alt="Azure OpenAI, Azure Database for PostgreSQL and Azure Container Apps">
 </p>
 
 <p align="center">
   <a href="#quickstart">Quickstart</a> ·
   <a href="#how-a-request-is-handled">How it works</a> ·
   <a href="#serving-over-http">HTTP service</a> ·
+  <a href="#deploying-on-azure">Azure</a> ·
   <a href="#evaluation">Evaluation</a> ·
   <a href="#measured-results">Measured results</a> ·
   <a href="#known-limits">Known limits</a>
 </p>
 
-Governed RAG is a reference implementation of retrieval-augmented generation on PostgreSQL and pgvector. Documents sit in two tiers of authority: curated documents, which have an owner and a review date, rank above the archive. The implementation covers the whole path: ingest with a deletion guard, hybrid retrieval with access control in the query, reranking, generation that must quote its evidence, four verification gates, an HTTP service, and an evaluation kit that fails the build on a regression. It runs end to end on deterministic fakes, so the quickstart and the test suite need no model download and no API key.
+Governed RAG is a reference implementation of retrieval-augmented generation on PostgreSQL and pgvector. Documents sit in two tiers of authority: curated documents, which have an owner and a review date, rank above the archive. The implementation covers the whole path: ingest with a deletion guard, hybrid retrieval with access control in the query, reranking, generation that must quote its evidence, four verification gates, an HTTP service, and an evaluation kit that fails the build on a regression. Azure is the default platform: Azure OpenAI for embeddings, generation and judging, Azure Database for PostgreSQL with Microsoft Entra ID login, and Azure Container Apps for the service, all deployed from Bicep with no keys or passwords. It runs end to end on deterministic fakes, so the quickstart and the test suite need no model download and no API key.
 
 ## Why I built this
 
@@ -105,22 +107,29 @@ An archive document needs no front matter; `acl: [support]` restricts it to a gr
 
 ## Real models
 
+Without `--fake`, every model seam defaults to **Azure OpenAI**: the embedder is a `text-embedding-3-large` deployment shortened to 1,024 dimensions, and the generator and judge are chat deployments called with structured outputs in strict mode. Authentication is Microsoft Entra ID through `DefaultAzureCredential` (the Azure CLI login on a laptop, a managed identity on Azure), so no API key is used. The reranker `BAAI/bge-reranker-v2-m3` runs next to the service through sentence-transformers, since Azure OpenAI has no cross-encoder.
+
 ```
-uv sync --extra real
-export ANTHROPIC_API_KEY=...
+uv sync --extra azure --extra real
+az login
+source infra/env.sh            # after infra/deploy.sh, see "Deploying on Azure"
 uv run rag ingest --knowledge demo/knowledge --archive demo/archive
 uv run rag ask "What is our refund window?"
+uv run rag eval --golden bench/golden.jsonl --judge
 ```
 
-Without `--fake`, the embedder is `BAAI/bge-m3` and the reranker `BAAI/bge-reranker-v2-m3` through sentence-transformers; the first run downloads both. Generation has three backends, chosen with `--generator`:
+`--generator`, `--embedder` and `--judge` choose another backend. `--judge` alone uses the Azure judge; without the flag no judge runs.
 
-| Backend | Use |
-|---|---|
-| `anthropic` (default) | The Anthropic API, with `ANTHROPIC_API_KEY`. |
-| `claude-cli` | The Claude Code CLI (`claude -p`). It needs `claude` on `PATH` or `CLAUDE_CLI=/path/to/claude`. |
-| `extractive` | No model call. It returns the best evidence sentence, which is enough to calibrate τ at no cost. |
+| Backend | Seams | Use |
+|---|---|---|
+| `azure-openai` (default) | embedder, generator, judge | Azure OpenAI deployments named by `AZURE_OPENAI_*_DEPLOYMENT`, Entra ID only |
+| `openrouter` | generator, judge | The same structured-output path through OpenRouter, an OpenAI-compatible gateway, with `OPENROUTER_API_KEY`. Useful for trying a model before deploying it on Azure |
+| `bge-m3` | embedder | `BAAI/bge-m3` locally through sentence-transformers |
+| `anthropic` | generator | The Anthropic API, with `ANTHROPIC_API_KEY` |
+| `claude-cli` | generator, judge | The Claude Code CLI (`claude -p`). It needs `claude` on `PATH` or `CLAUDE_CLI=/path/to/claude` |
+| `extractive` | generator | No model call. It returns the best evidence sentence, which is enough to calibrate τ at no cost |
 
-On an AMD GPU, `scripts/gpu.sh rag ...` runs the same commands in a ROCm environment; the setup lines are at the top of that script.
+Switching embedders re-embeds the corpus on the next ingest, because the embedder's name and dimension are part of every chunk's content hash. On an AMD GPU, `scripts/gpu.sh rag ...` runs the local models in a ROCm environment; the setup lines are at the top of that script.
 
 ## Serving over HTTP
 
@@ -139,6 +148,30 @@ curl -s localhost:8080/answer -H 'Authorization: Bearer a-long-random-token-for-
 | `GET /healthz` | | `{"status": "ok"}` when the database answers |
 
 The reader's groups come only from the token file on the server, never from the request. A request without a valid token gets 401. `--anonymous-public` lets requests with no `Authorization` header read public documents; a malformed header is still refused. The server binds to 127.0.0.1 by default, speaks plain HTTP and stops cleanly on SIGTERM, so it belongs behind a proxy that adds TLS. `--pool-size` (default 4) is the number of database connections. One connection is held for the whole of an `/answer` call, so the pool size also caps answers in flight.
+
+## Deploying on Azure
+
+Everything is Bicep under [`infra/`](infra/), deployed with the Azure CLI. Identity, tenant and IP addresses are looked up at deploy time and passed as parameters, so none of them is stored in the repository; generated settings go to `.env.azure`, which is gitignored.
+
+| Step | Command | Creates |
+|---|---|---|
+| 1. Budget | `az deployment sub create -l swedencentral -f infra/bootstrap.bicep -p budgetAmount=50 contactEmail=<address>` | The resource group and a monthly budget with alerts |
+| 2. Data and models | `infra/deploy.sh` | Azure Database for PostgreSQL 17 (Entra ID only, `vector` allowlisted) and an Azure AI Foundry resource with key auth disabled and pinned generator, judge and embedder deployments |
+| 3. Service | `infra/deploy-app.sh` | Container Registry, Log Analytics, a Container Apps environment, a user-assigned managed identity and the container app |
+| Tear down | `infra/teardown.sh` | Deletes the resource group |
+
+The container app runs `rag serve` behind HTTPS ingress and scales to zero when idle. Its managed identity pulls the image, calls the model deployments and logs in to PostgreSQL; the application asks for a fresh Entra token on every new database connection, so a long-running pool outlives any single token. The bearer-token file is a Container Apps secret mounted at `/secrets/tokens.json`, read from a local `tokens.json` at deploy time. The [`Dockerfile`](Dockerfile) bakes the reranker into the image, so a cold start downloads nothing.
+
+| Variable | Set by | Meaning |
+|---|---|---|
+| `AZURE_OPENAI_ENDPOINT` | `deploy.sh`, the container app | The Foundry resource endpoint |
+| `AZURE_OPENAI_GENERATOR_DEPLOYMENT`, `_JUDGE_DEPLOYMENT`, `_EMBEDDER_DEPLOYMENT` | the same | Deployment names (`generator`, `judge`, `embedder`) |
+| `AZURE_OPENAI_REASONING_EFFORT` | optional | Reasoning effort sent to reasoning models |
+| `AZURE_CLIENT_ID` | the container app | Selects the user-assigned managed identity |
+| `DATABASE_URL` | the same | `postgresql://<Entra principal>@<server>.postgres.database.azure.com:5432/rag?sslmode=require`, with no password |
+| `OPENROUTER_API_KEY`, `OPENROUTER_GENERATOR_MODEL`, `OPENROUTER_JUDGE_MODEL` | optional | The secondary OpenRouter backend |
+
+The design decisions, from keeping pgvector over Azure AI Search to the deployment types and identities, are in [`docs/azure/DECISIONS.md`](docs/azure/DECISIONS.md).
 
 ## Evaluation
 
@@ -160,7 +193,7 @@ uv run rag eval --golden bench/golden.jsonl --write-baseline eval/baseline.json 
 
 The second command writes a new baseline and fits τ. Cases are marked `"split": "fit"` or `"holdout"`: τ is fitted on the fit half, and the report shows how the same τ does on the other half and on the cases tagged `near_miss`. The calibration file records the reranker it was fitted with, and the pipeline refuses a file fitted with a different one.
 
-`--judge claude-cli` adds an entailment check by a second model call: is every claim in the answer supported by the evidence it cites? As a control, each answer is also judged against the cited evidence of a different case, which a working judge must reject. The judge is reported and never fails a run.
+`--judge` adds an entailment check by a second model call: is every claim in the answer supported by the evidence it cites? As a control, each answer is also judged against the cited evidence of a different case, which a working judge must reject. The judge is reported and never fails a run.
 
 `--workers 6` answers several cases at once. Latency in that report then includes waiting for a local model, so latency figures should come from a run with one worker.
 
@@ -248,7 +281,7 @@ Hybrid retrieval on this database at 10 queries/s had a p50 of 8 ms and a p95 of
 
 ## Configuration
 
-Defaults are in [`src/governed_rag/config.py`](src/governed_rag/config.py). The database URL comes from `DATABASE_URL` or `--database-url`.
+Defaults are in [`src/governed_rag/config.py`](src/governed_rag/config.py). The database URL comes from `DATABASE_URL` or `--database-url`; for an Azure PostgreSQL host without a password in the URL, the password is a Microsoft Entra token fetched per connection. The Azure variables are listed under [Deploying on Azure](#deploying-on-azure).
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -266,11 +299,14 @@ Defaults are in [`src/governed_rag/config.py`](src/governed_rag/config.py). The 
 
 ```
 src/governed_rag/   pipeline: ingest, retrieve, evidence, prompt, gates, answer, evalkit, service, cli
-tests/              243 tests on deterministic fakes; tests that need real models carry the `real` marker
+tests/              269 tests on deterministic fakes and stand-in clients; tests that need real models carry the `real` marker
 bench/              benchmark corpus generator, 330-case golden set, load test, ticket embedder
 demo/               an 8-document corpus and 11-case golden set for the quickstart and CI
 eval/               committed baseline, calibration and raw measurement reports
 scripts/            ci.sh (the CI gate) and gpu.sh (ROCm launcher)
+infra/              Bicep for the budget, PostgreSQL, Azure AI Foundry and Container Apps, with deploy and teardown scripts
+docs/azure/         design decisions for the Azure deployment
+Dockerfile          the service image for Azure Container Apps
 ```
 
 ## Tests and CI
@@ -291,7 +327,7 @@ The system enforces three properties. The first two are covered by tests on forb
 | A caller cannot choose its own groups | `rag serve` maps a bearer token to groups from a file on the server and ignores any groups in the request; an unknown or malformed token gets 401 |
 | Retrieved text cannot issue instructions | Evidence is passed as data in delimited blocks, and the gates reject an answer whose quotes or numbers are not in that evidence |
 
-The deployer has to supply the rest. `rag serve` speaks plain HTTP on 127.0.0.1, with no TLS and no rate limiting, so it belongs behind a proxy that adds both. The token file holds credentials in clear text and must stay out of version control. The development database in `compose.yaml` uses the user and password `rag` and must not be exposed. Prompt injection through a document is reduced by the two measures in the table, and no test in this repository shows it is prevented.
+The deployer has to supply the rest. `rag serve` speaks plain HTTP on 127.0.0.1, with no TLS and no rate limiting, so it belongs behind a proxy that adds both; on Azure, Container Apps ingress terminates TLS, and rate limiting still has to be added in front of it. The token file holds credentials in clear text and must stay out of version control. The development database in `compose.yaml` uses the user and password `rag` and must not be exposed. Prompt injection through a document is reduced by the two measures in the table, and no test in this repository shows it is prevented.
 
 [`SECURITY.md`](SECURITY.md) describes how to report a vulnerability.
 
